@@ -107,7 +107,9 @@ def get_maps_for_input(input_dict, scene, hyperparams):
 def main():
     # Choose one of the model directory names under the experiment/*/models folders.
     # Possibilities are 'vel_ee', 'int_ee', 'int_ee_me', or 'robot'
-    model_dir = os.path.join(args.log_dir, 'int_ee')
+    print(args.log_dir)
+    print(os.getcwd())
+    model_dir = os.path.join(args.log_dir, 'robot')
 
     # Load hyperparameters from json
     config_file = os.path.join(model_dir, args.conf)
@@ -188,7 +190,7 @@ def main():
         dists, preds = trajectron.incremental_forward(input_dict,
                                                       maps,
                                                       prediction_horizon=6,
-                                                      num_samples=1,
+                                                      num_samples=20,
                                                       robot_present_and_future=robot_present_and_future,
                                                       full_dist=True)
         end = time.time()
@@ -202,13 +204,15 @@ def main():
                 detailed_preds_dict[node] = preds[node]
 
         fig, ax = plt.subplots()
+        # todo: why this is not visualized
         vis.visualize_distribution(ax,
                                    dists)
         vis.visualize_prediction(ax,
                                  {timestep: preds},
                                  eval_scene.dt,
                                  hyperparams['maximum_history_length'],
-                                 hyperparams['prediction_horizon'])
+                                 hyperparams['prediction_horizon'],
+                                 map=eval_scene.map['VEHICLE'])
 
         if eval_scene.robot is not None and hyperparams['incl_robot_node']:
             robot_for_plotting = eval_scene.robot.get(np.array([timestep,
@@ -218,19 +222,18 @@ def main():
 
             ax.plot(robot_for_plotting[1:, 1], robot_for_plotting[1:, 0],
                     color='r',
-                    linewidth=1.0, alpha=1.0)
+                    linewidth=1.0, alpha=1.0, zorder=10)
 
             # Current Node Position
             circle = plt.Circle((robot_for_plotting[0, 1],
                                  robot_for_plotting[0, 0]),
-                                0.3,
+                                1,
                                 facecolor='r',
                                 edgecolor='k',
                                 lw=0.5,
-                                zorder=3)
+                                zorder=15)
             ax.add_artist(circle)
-
-        fig.savefig(os.path.join(output_save_dir, f'pred_{timestep}.pdf'), dpi=300)
+        fig.savefig(os.path.join(output_save_dir, f'pred_{timestep}.png'), dpi=300)
         plt.close(fig)
 
 

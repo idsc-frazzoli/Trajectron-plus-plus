@@ -15,12 +15,15 @@ def plot_trajectories(ax,
                       line_width=0.2,
                       edge_width=2,
                       circle_edge_width=0.5,
-                      node_circle_size=0.3,
+                      node_circle_size=1,
                       batch_num=0,
                       kde=False):
 
     cmap = ['k', 'b', 'y', 'g', 'r']
-
+    x_min = np.inf
+    x_max = -np.inf
+    y_min = np.inf
+    y_max = -np.inf
     for node in histories_dict:
         history = histories_dict[node]
         future = futures_dict[node]
@@ -29,8 +32,15 @@ def plot_trajectories(ax,
         if np.isnan(history[-1]).any():
             continue
 
-        ax.plot(history[:, 0], history[:, 1], 'k--')
-
+        ax.plot(history[:, 0], history[:, 1], 'k--', zorder=10)
+        if np.min(history[:, 0]) < x_min:
+            x_min = np.min(history[:, 0])
+        if np.max(history[:, 0]) > x_max:
+            x_max = np.max(history[:, 0])
+        if np.min(history[:, 1]) < y_min:
+            y_min = np.min(history[:, 1])
+        if np.max(history[:, 1]) > y_max:
+            y_max = np.max(history[:, 1])
         for sample_num in range(prediction_dict[node].shape[1]):
 
             if kde and predictions.shape[1] >= 50:
@@ -48,7 +58,15 @@ def plot_trajectories(ax,
                     future[:, 1],
                     'w--',
                     path_effects=[pe.Stroke(linewidth=edge_width, foreground='k'), pe.Normal()])
-
+            if len(future)>0:
+                if np.min(future[:, 0]) < x_min:
+                    x_min = np.min(future[:, 0])
+                if np.max(future[:, 0]) > x_max:
+                    x_max = np.max(future[:, 0])
+                if np.min(future[:, 1]) < y_min:
+                    y_min = np.min(future[:, 1])
+                if np.max(future[:, 1]) > y_max:
+                    y_max = np.max(future[:, 1])
             # Current Node Position
             circle = plt.Circle((history[-1, 0],
                                  history[-1, 1]),
@@ -60,7 +78,9 @@ def plot_trajectories(ax,
             ax.add_artist(circle)
 
     ax.axis('equal')
-
+    buffer = 50
+    # ax.set_xlim(left=x_min-buffer, right=x_max+buffer)
+    # ax.set_ylim(bottom=y_min-buffer, top=y_max+buffer)
 
 def visualize_prediction(ax,
                          prediction_output_dict,
@@ -86,8 +106,8 @@ def visualize_prediction(ax,
     histories_dict = histories_dict[ts_key]
     futures_dict = futures_dict[ts_key]
 
-    if map is not None:
-        ax.imshow(map.as_image(), origin='lower', alpha=0.5)
+    # if map is not None:
+    #     ax.imshow(map.as_image(), origin='lower', alpha=0.3, zorder=0)
     plot_trajectories(ax, prediction_dict, histories_dict, futures_dict, *kwargs)
 
 
@@ -97,34 +117,58 @@ def visualize_distribution(ax,
                            pi_threshold=0.05,
                            **kwargs):
     if map is not None:
-        ax.imshow(map.as_image(), origin='lower', alpha=0.5)
+        ax.imshow(map.as_image(), origin='lower', alpha=0.3)
 
     for node, pred_dist in prediction_distribution_dict.items():
+        print(pred_dist.mus.shape[:2])
         if pred_dist.mus.shape[:2] != (1, 1):
             return
-
         means = pred_dist.mus.squeeze().cpu().numpy()
         covs = pred_dist.get_covariance_matrix().squeeze().cpu().numpy()
         pis = pred_dist.pis_cat_dist.probs.squeeze().cpu().numpy()
+        if pred_dist.mus.shape[:2] == (1, 1):
+            for timestep in range(means.shape[0]):
+                for z_val in range(means.shape[1]):
+                    mean = means[timestep, z_val]
+                    covar = covs[timestep, z_val]
+                    pi = pis[timestep, z_val]
 
-        for timestep in range(means.shape[0]):
-            for z_val in range(means.shape[1]):
-                mean = means[timestep, z_val]
-                covar = covs[timestep, z_val]
-                pi = pis[timestep, z_val]
+                    if pi < pi_threshold:
+                        continue
 
-                if pi < pi_threshold:
-                    continue
+                    v, w = linalg.eigh(covar)
+                    v = 2. * np.sqrt(2.) * np.sqrt(v)
+                    u = w[0] / linalg.norm(w[0])
 
-                v, w = linalg.eigh(covar)
-                v = 2. * np.sqrt(2.) * np.sqrt(v)
-                u = w[0] / linalg.norm(w[0])
-
-                # Plot an ellipse to show the Gaussian component
-                angle = np.arctan(u[1] / u[0])
-                angle = 180. * angle / np.pi  # convert to degrees
-                ell = patches.Ellipse(mean, v[0], v[1], 180. + angle, color='blue' if node.type.name == 'VEHICLE' else 'orange')
-                ell.set_edgecolor(None)
-                ell.set_clip_box(ax.bbox)
-                ell.set_alpha(pi/10)
-                ax.add_artist(ell)
+                    # Plot an ellipse to show the Gaussian component
+                    angle = np.arctan(u[1] / u[0])
+                    angle = 180. * angle / np.pi  # convert to degrees
+                    ell = patches.Ellipse(mean, v[0], v[1], 180. + angle, color='blue' if node.type.name == 'VEHICLE' else 'orange')
+                    ell.set_edgecolor(None)
+                    ell.set_clip_box(ax.bbox)
+                    ell.set_alpha(pi/10)
+                    ax.add_artist(ell)
+        # else:
+        #     for dist_idx in range(means.shape[0]):
+        #         for timestep in range(means.shape[1]):
+        #             for z_val in range(means.shape[2]):
+        #                 mean = means[dist_idx, timestep, z_val]
+        #                 covar = covs[dist_idx, timestep, z_val]
+        #                 pi = pis[timestep, z_val]
+        #
+        #                 if pi < pi_threshold:
+        #                     continue
+        #
+        #                 v, w = linalg.eigh(covar)
+        #                 v = 2. * np.sqrt(2.) * np.sqrt(v)
+        #                 u = w[0] / linalg.norm(w[0])
+        #
+        #                 # Plot an ellipse to show the Gaussian component
+        #                 angle = np.arctan(u[1] / u[0])
+        #                 angle = 180. * angle / np.pi  # convert to degrees
+        #                 ell = patches.Ellipse(mean, v[0], v[1], 180. + angle,
+        #                                       color='blue' if node.type.name == 'VEHICLE' else 'orange')
+        #                 ell.set_edgecolor(None)
+        #                 ell.set_clip_box(ax.bbox)
+        #                 ell.set_alpha(pi / 10)
+        #                 ax.add_artist(ell)
