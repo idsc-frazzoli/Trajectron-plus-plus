@@ -107,8 +107,6 @@ def get_maps_for_input(input_dict, scene, hyperparams):
 def main():
     # Choose one of the model directory names under the experiment/*/models folders.
     # Possibilities are 'vel_ee', 'int_ee', 'int_ee_me', or 'robot'
-    print(args.log_dir)
-    print(os.getcwd())
     model_dir = os.path.join(args.log_dir, 'robot')
 
     # Load hyperparameters from json
@@ -183,14 +181,14 @@ def main():
                                                                       timestep + hyperparams['prediction_horizon']]),
                                                             hyperparams['state'][eval_scene.robot.type],
                                                             padding=0.0)
-            robot_present_and_future = np.stack([robot_present_and_future, robot_present_and_future], axis=0)
+            # robot_present_and_future = np.stack([robot_present_and_future, robot_present_and_future], axis=0)
             # robot_present_and_future += adjustment
 
         start = time.time()
         dists, preds = trajectron.incremental_forward(input_dict,
                                                       maps,
                                                       prediction_horizon=6,
-                                                      num_samples=20,
+                                                      num_samples=1,
                                                       robot_present_and_future=robot_present_and_future,
                                                       full_dist=True)
         end = time.time()
@@ -212,14 +210,15 @@ def main():
                                  eval_scene.dt,
                                  hyperparams['maximum_history_length'],
                                  hyperparams['prediction_horizon'],
-                                 map=eval_scene.map['VEHICLE'])
+                                 # map=eval_scene.map['VEHICLE']
+                                 )
 
         if eval_scene.robot is not None and hyperparams['incl_robot_node']:
             robot_for_plotting = eval_scene.robot.get(np.array([timestep,
                                                                 timestep + hyperparams['prediction_horizon']]),
                                                       hyperparams['state'][eval_scene.robot.type])
             # robot_for_plotting += adjustment
-
+            # robot_for_plotting = eval_scene.map[eval_scene.robot.type].to_map_points(robot_for_plotting)
             ax.plot(robot_for_plotting[1:, 1], robot_for_plotting[1:, 0],
                     color='r',
                     linewidth=1.0, alpha=1.0, zorder=10)

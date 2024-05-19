@@ -106,8 +106,8 @@ def visualize_prediction(ax,
     histories_dict = histories_dict[ts_key]
     futures_dict = futures_dict[ts_key]
 
-    # if map is not None:
-    #     ax.imshow(map.as_image(), origin='lower', alpha=0.3, zorder=0)
+    if map is not None:
+        ax.imshow(map.as_image(), origin='lower', alpha=0.3, zorder=0)
     plot_trajectories(ax, prediction_dict, histories_dict, futures_dict, *kwargs)
 
 
@@ -146,7 +146,7 @@ def visualize_distribution(ax,
                     ell = patches.Ellipse(mean, v[0], v[1], 180. + angle, color='blue' if node.type.name == 'VEHICLE' else 'orange')
                     ell.set_edgecolor(None)
                     ell.set_clip_box(ax.bbox)
-                    ell.set_alpha(pi/10)
+                    ell.set_alpha(pi/2)
                     ax.add_artist(ell)
         # else:
         #     for dist_idx in range(means.shape[0]):
