@@ -13,6 +13,7 @@ from model.online.online_trajectron import OnlineTrajectron
 from model.model_registrar import ModelRegistrar
 from environment import Environment, Scene
 import matplotlib.pyplot as plt
+from visualization.map_vis import *
 
 if not torch.cuda.is_available() or args.device == 'cpu':
     args.device = torch.device('cpu')
@@ -201,37 +202,51 @@ def main():
             if node in preds:
                 detailed_preds_dict[node] = preds[node]
 
-        fig, ax = plt.subplots()
-        # todo: why this is not visualized
+        root_path = '/home/ysli/Desktop/dis-constrained-planning/predictors/Trajectron-plus-plus/experiments/nuScenes/v1.0-mini'
+        nusc = get_nusc(root_path)
+        nusc_map = get_nusc_map(root_path, 'boston-seaport')
+        token = get_scene_token(nusc, 'scene-0103')
+        fig, ax = plot_agents_and_ego_on_map_at_time(nusc, nusc_map, token, timestep)
+
+        ego_state_local = eval_scene.robot.get(np.array([timestep, timestep]),
+                                                  hyperparams['state'][eval_scene.robot.type])[0]
+        ego_pos_local = [ego_state_local[0], ego_state_local[1]]
+        ego_heading_local = ego_state_local[6]
+        ego_pos, ego_heading = get_ego_pose_at_time(nusc, token, timestep)
+        pos_local_to_map = np.array(ego_pos) - np.array(ego_pos_local)
+        angle_local_to_map = ego_heading_local - ego_heading
+
+        # fig, ax = plt.subplots()
         vis.visualize_distribution(ax,
-                                   dists)
+                                   dists, pos_local_to_map=pos_local_to_map, angle_local_to_map=angle_local_to_map)
         vis.visualize_prediction(ax,
                                  {timestep: preds},
                                  eval_scene.dt,
                                  hyperparams['maximum_history_length'],
                                  hyperparams['prediction_horizon'],
-                                 # map=eval_scene.map['VEHICLE']
+                                 pos_local_to_map=pos_local_to_map,
+                                 angle_local_to_map=angle_local_to_map
                                  )
 
-        if eval_scene.robot is not None and hyperparams['incl_robot_node']:
-            robot_for_plotting = eval_scene.robot.get(np.array([timestep,
-                                                                timestep + hyperparams['prediction_horizon']]),
-                                                      hyperparams['state'][eval_scene.robot.type])
-            # robot_for_plotting += adjustment
-            # robot_for_plotting = eval_scene.map[eval_scene.robot.type].to_map_points(robot_for_plotting)
-            ax.plot(robot_for_plotting[1:, 1], robot_for_plotting[1:, 0],
-                    color='r',
-                    linewidth=1.0, alpha=1.0, zorder=10)
-
-            # Current Node Position
-            circle = plt.Circle((robot_for_plotting[0, 1],
-                                 robot_for_plotting[0, 0]),
-                                1,
-                                facecolor='r',
-                                edgecolor='k',
-                                lw=0.5,
-                                zorder=15)
-            ax.add_artist(circle)
+        # if eval_scene.robot is not None and hyperparams['incl_robot_node']:
+        #     robot_for_plotting = eval_scene.robot.get(np.array([timestep,
+        #                                                         timestep + hyperparams['prediction_horizon']]),
+        #                                               hyperparams['state'][eval_scene.robot.type])
+        #     # robot_for_plotting += adjustment
+        #     # robot_for_plotting = eval_scene.map[eval_scene.robot.type].to_map_points(robot_for_plotting)
+        #     ax.plot(robot_for_plotting[1:, 0], robot_for_plotting[1:, 1],
+        #             color='r',
+        #             linewidth=1.0, alpha=1.0, zorder=10)
+        #
+        #     # Current Node Position
+        #     circle = plt.Circle((robot_for_plotting[0, 0],
+        #                          robot_for_plotting[0, 1]),
+        #                         1,
+        #                         facecolor='r',
+        #                         edgecolor='k',
+        #                         lw=0.5,
+        #                         zorder=15)
+        #     ax.add_artist(circle)
         fig.savefig(os.path.join(output_save_dir, f'pred_{timestep}.png'), dpi=300)
         plt.close(fig)
 
