@@ -7,6 +7,7 @@ import random
 import pathlib
 import evaluation
 import numpy as np
+import imageio
 import visualization as vis
 from argument_parser import args
 from model.online.online_trajectron import OnlineTrajectron
@@ -14,6 +15,9 @@ from model.model_registrar import ModelRegistrar
 from environment import Environment, Scene
 import matplotlib.pyplot as plt
 from visualization.map_vis import *
+from visualization.annimation import create_gif_from_saved_figs
+from utils.ego_plan_utils import *
+
 
 if not torch.cuda.is_available() or args.device == 'cpu':
     args.device = torch.device('cpu')
@@ -146,7 +150,7 @@ def main():
 
     # Creating a dummy environment with a single scene that contains information about the world.
     # When using this code, feel free to use whichever scene index or initial timestep you wish.
-    scene_idx = 0
+    scene_idx = 0  # 0796 has idx 4 in the training set, 0103 has index 0 in the testing set
 
     # You need to have at least acceleration, so you want 2 timesteps of prior data, e.g. [0, 1],
     # so that you can immediately start incremental inference from the 3rd timestep onwards.
@@ -177,6 +181,7 @@ def main():
             maps = get_maps_for_input(input_dict, eval_scene, hyperparams)
 
         robot_present_and_future = None
+        modified_ego_plan = None
         if eval_scene.robot is not None and hyperparams['incl_robot_node']:
             robot_present_and_future = eval_scene.robot.get(np.array([timestep,
                                                                       timestep + hyperparams['prediction_horizon']]),
@@ -184,13 +189,15 @@ def main():
                                                             padding=0.0)
             # robot_present_and_future = np.stack([robot_present_and_future, robot_present_and_future], axis=0)
             # robot_present_and_future += adjustment
+            # modified_ego_plan = get_ego_plan_const_vel(ego_plan_original=robot_present_and_future)
+            modified_ego_plan = get_ego_plan_stop(ego_plan_original=robot_present_and_future)
 
         start = time.time()
         dists, preds = trajectron.incremental_forward(input_dict,
                                                       maps,
                                                       prediction_horizon=6,
                                                       num_samples=1,
-                                                      robot_present_and_future=robot_present_and_future,
+                                                      robot_present_and_future=modified_ego_plan,
                                                       full_dist=True)
         end = time.time()
         print("t=%d: took %.2f s (= %.2f Hz) w/ %d nodes and %d edges" % (timestep, end - start,
@@ -204,15 +211,24 @@ def main():
 
         root_path = '/home/ysli/Desktop/dis-constrained-planning/predictors/Trajectron-plus-plus/experiments/nuScenes/v1.0-mini'
         nusc = get_nusc(root_path)
-        nusc_map = get_nusc_map(root_path, 'boston-seaport')
-        token = get_scene_token(nusc, 'scene-0103')
-        fig, ax = plot_agents_and_ego_on_map_at_time(nusc, nusc_map, token, timestep)
+        # scene_name = 'scene-0796'
+        scene_name = 'scene-0103'
+        scene_token = get_scene_token(nusc, scene_name)
+        scene = nusc.get('scene', scene_token)
+        log_token = scene['log_token']
+        log = nusc.get('log', log_token)
+        location = log['location']
+        nusc_map = get_nusc_map(root_path, location)
+        if modified_ego_plan is not None:
+            fig, ax = plot_agents_and_ego_on_map_at_time(nusc, nusc_map, scene_token, timestep, plot_ego_plan=False)
+        else:
+            fig, ax = plot_agents_and_ego_on_map_at_time(nusc, nusc_map, scene_token, timestep, plot_ego_plan=True)
 
         ego_state_local = eval_scene.robot.get(np.array([timestep, timestep]),
-                                                  hyperparams['state'][eval_scene.robot.type])[0]
+                                               hyperparams['state'][eval_scene.robot.type])[0]
         ego_pos_local = [ego_state_local[0], ego_state_local[1]]
         ego_heading_local = ego_state_local[6]
-        ego_pos, ego_heading = get_ego_pose_at_time(nusc, token, timestep)
+        ego_pos, ego_heading = get_ego_pose_at_time(nusc, scene_token, timestep)
         pos_local_to_map = np.array(ego_pos) - np.array(ego_pos_local)
         angle_local_to_map = ego_heading_local - ego_heading
 
@@ -227,7 +243,9 @@ def main():
                                  pos_local_to_map=pos_local_to_map,
                                  angle_local_to_map=angle_local_to_map
                                  )
-
+        if modified_ego_plan is not None:
+            vis.visualize_ego_plan(ax, modified_ego_plan, pos_local_to_map=pos_local_to_map)
+        ax.text(0.5, 1, 'Timestep=' + str(timestep), fontsize=15, transform=ax.transAxes)
         # if eval_scene.robot is not None and hyperparams['incl_robot_node']:
         #     robot_for_plotting = eval_scene.robot.get(np.array([timestep,
         #                                                         timestep + hyperparams['prediction_horizon']]),

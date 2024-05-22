@@ -1,2 +1,2 @@
-from .visualization import visualize_prediction, visualize_distribution
+from .visualization import visualize_prediction, visualize_distribution, visualize_ego_plan
 from .visualization_utils import plot_boxplots

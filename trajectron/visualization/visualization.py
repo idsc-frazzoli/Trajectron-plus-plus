@@ -150,3 +150,12 @@ def visualize_distribution(ax,
                     ell.set_clip_box(ax.bbox)
                     ell.set_alpha(pi / 2)
                     ax.add_artist(ell)
+
+
+def visualize_ego_plan(ax: plt.Axes, agent_plan: np.ndarray, pos_local_to_map=None,
+                           angle_local_to_map=None):
+    agent_pos = agent_plan[:, :2]
+    if pos_local_to_map is not None:
+        agent_pos += pos_local_to_map
+    ax.plot(agent_pos[:,0], agent_pos[:, 1], 'ro-', markersize=1.0, alpha=1.0, zorder=2)
+

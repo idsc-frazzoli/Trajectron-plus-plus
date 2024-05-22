@@ -3,7 +3,7 @@ import os.path
 import matplotlib.pyplot as plt
 import tqdm
 import numpy as np
-from typing import List
+from typing import List, Optional
 from nuscenes.map_expansion.map_api import NuScenesMap
 from nuscenes.nuscenes import NuScenes
 from tqdm import tqdm
@@ -51,7 +51,7 @@ def get_agent_occs_from_sample(nusc: NuScenes, sample_token: str):
 
 def get_agent_occs_from_scene(nusc: NuScenes, scene_token: str):
     map_poses = []
-    agent_init_occs = []  # [{ann_token: (pos, heading, size)}]
+    agent_init_occs = []  # [{instance_token: (pos, heading, size)}]
     ego_occs = []  # [(pos, heading, size)]
 
     # For each sample in the scene, store the ego pose.
@@ -64,18 +64,18 @@ def get_agent_occs_from_scene(nusc: NuScenes, scene_token: str):
     return map_poses, agent_init_occs, ego_occs
 
 
-def get_single_agent_occs(agent_init_occs, ann_token: str):
+def get_single_agent_occs(agent_init_occs, instance_token: str):
     future_occ = {}
     for timestep in range(len(agent_init_occs)):
         occs = agent_init_occs[timestep]
         for token in occs.keys():
-            if token == ann_token:
+            if token == instance_token:
                 future_occ[timestep] = occs[token]
     return future_occ
 
 
-def plot_agent_future(ax: plt.Axes, agent_init_occs, ann_token: str, cur_time_step: int):
-    agent_occs = get_single_agent_occs(agent_init_occs, ann_token)
+def plot_agent_future_from_occs(ax: plt.Axes, agent_init_occs, instance_token: str, cur_time_step: int):
+    agent_occs = get_single_agent_occs(agent_init_occs, instance_token)
     agent_future_pos = []
     time_step = cur_time_step
     horizon_length = 6
@@ -122,7 +122,7 @@ def plot_agent_occ(ax: plt.Axes, pos: List[float], heading: float, size: List[fl
     ax.arrow(x, y, length * np.cos(heading), length * np.sin(heading), head_width=1)
 
 
-def plot_ego_occ_and_future(ax: plt.Axes, pos: List[float], heading: float, size: List[float], ego_future: np.ndarray):
+def plot_ego_occ_and_future(ax: plt.Axes, pos: List[float], heading: float, size: List[float], ego_future: Optional[np.ndarray]=None):
     x = pos[0]
     y = pos[1]
     width = size[1]
@@ -132,27 +132,34 @@ def plot_ego_occ_and_future(ax: plt.Axes, pos: List[float], heading: float, size
     ax.add_patch(occ)
     length = 2
     ax.arrow(x, y, length * np.cos(heading), length * np.sin(heading), head_width=1)
-
-    ax.plot(ego_future[:, 0], ego_future[:, 1], 'ro-', markersize=1.0, alpha=1.0, zorder=2)
+    if ego_future is not None:
+        ax.plot(ego_future[:, 0], ego_future[:, 1], 'ro-', markersize=1.0, alpha=1.0, zorder=2)
 
 
 def plot_agents_and_ego_on_map_at_time(nusc: NuScenes,
                                        nusc_map: NuScenesMap,
                                        scene_token: str,
-                                       time_step: int):
+                                       time_step: int,
+                                       plot_ego_plan: bool = False):
     map_poses, agent_init_occs, ego_occs = get_agent_occs_from_scene(nusc, scene_token)
 
     map_poses = np.vstack(map_poses)[:, :2]
     fig, ax = plot_map_patch(nusc_map, map_poses)
 
     ego_occ = ego_occs[time_step]
-    future_length = 6
-    future_end = min(len(ego_occs), time_step + future_length)
-    ego_future = map_poses[time_step:future_end, :]
-    plot_ego_occ_and_future(ax, pos=ego_occ[0], heading=ego_occ[1], size=ego_occ[2], ego_future=ego_future)
-    for ann_token, occ in agent_init_occs[time_step].items():
+    ego_pos = ego_occ[0]
+    ego_heading = ego_occ[1]
+    ego_size = ego_occ[2]
+    if plot_ego_plan:
+        future_length = 6
+        future_end = min(len(ego_occs), time_step + future_length)
+        ego_future = map_poses[time_step:future_end, :]
+        plot_ego_occ_and_future(ax, pos=ego_pos, heading=ego_heading, size=ego_size, ego_future=ego_future)
+    else:
+        plot_ego_occ_and_future(ax, pos=ego_pos, heading=ego_heading, size=ego_size)
+    for instance_token, occ in agent_init_occs[time_step].items():
         plot_agent_occ(ax, pos=occ[0], heading=occ[1], size=occ[2])
-        plot_agent_future(ax, agent_init_occs, ann_token, time_step)
+        plot_agent_future_from_occs(ax, agent_init_occs, instance_token, time_step)
 
     plt.axis('off')
     return fig, ax
