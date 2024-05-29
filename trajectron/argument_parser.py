@@ -169,4 +169,9 @@ parser.add_argument('--save_every',
                     help='how often to save during training, never if None',
                     type=int,
                     default=1)
+
+parser.add_argument('--finetuning',
+                    help="Whether resume from trained model and finetune on generated data",
+                    action='store_true')
+
 args = parser.parse_args()

@@ -71,6 +71,7 @@ def main():
     hyperparams['use_map_encoding'] = args.map_encoding
     hyperparams['augment'] = args.augment
     hyperparams['override_attention_radius'] = args.override_attention_radius
+    is_finetuning = args.finetuning
 
     print('-----------------------')
     print('| TRAINING PARAMETERS |')
@@ -91,7 +92,21 @@ def main():
 
     log_writer = None
     model_dir = None
-    if not args.debug:
+
+    trained_model_dir = None
+    finetune_model_dir = None
+    if is_finetuning:
+        hyperparams['learning_rate']=0.001
+        trained_model_dir = os.path.join(args.log_dir, 'robot')
+        finetune_model_dir = os.path.join(args.log_dir,
+                                          'robot/finetuning/' + time.strftime('%d_%b_%Y_%H_%M_%S', time.localtime()))
+        pathlib.Path(finetune_model_dir).mkdir(parents=True, exist_ok=True)
+        with open(os.path.join(finetune_model_dir, 'config.json'), 'w') as conf_json:
+            json.dump(hyperparams, conf_json)
+
+        log_writer = SummaryWriter(log_dir=finetune_model_dir)
+
+    if not args.debug and not is_finetuning:
         # Create the log and model directiory if they're not present.
         model_dir = os.path.join(args.log_dir,
                                  'models_' + time.strftime('%d_%b_%Y_%H_%M_%S', time.localtime()) + args.log_tag)
@@ -203,8 +218,11 @@ def main():
                                         hyperparams['edge_removal_filter'])
             print(f"Created Scene Graph for Evaluation Scene {i}")
 
-    model_registrar = ModelRegistrar(model_dir, args.device)
-
+    if is_finetuning:
+        model_registrar = ModelRegistrar(trained_model_dir, args.device)
+        model_registrar.load_models(iter_num=12)
+    else:
+        model_registrar = ModelRegistrar(model_dir, args.device)
     trajectron = Trajectron(model_registrar,
                             hyperparams,
                             log_writer,

@@ -7,7 +7,6 @@ import random
 import pathlib
 import evaluation
 import numpy as np
-import imageio
 import visualization as vis
 from argument_parser import args
 from model.online.online_trajectron import OnlineTrajectron
@@ -209,7 +208,7 @@ def main():
             if node in preds:
                 detailed_preds_dict[node] = preds[node]
 
-        root_path = '/home/ysli/Desktop/dis-constrained-planning/predictors/Trajectron-plus-plus/experiments/nuScenes/v1.0-mini'
+        root_path = '/home/ysli/v1.0-mini'
         nusc = get_nusc(root_path)
         # scene_name = 'scene-0796'
         scene_name = 'scene-0103'
