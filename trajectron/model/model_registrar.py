@@ -50,10 +50,14 @@ class ModelRegistrar(nn.Module):
     def print_model_names(self):
         print(self.model_dict.keys())
 
-    def save_models(self, curr_iter):
+    def save_models(self, curr_iter, save_dir=None):
         # Create the model directiory if it's not present.
-        save_path = os.path.join(self.model_dir,
-                                 'model_registrar-%d.pt' % curr_iter)
+        if save_dir is None:
+            save_path = os.path.join(self.model_dir,
+                                     'model_registrar-%d.pt' % curr_iter)
+        else:
+            save_path = os.path.join(save_dir,
+                                     'model_registrar-%d.pt' % curr_iter)
 
         torch.save(self.model_dict, save_path)
 
