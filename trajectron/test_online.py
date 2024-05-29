@@ -111,7 +111,7 @@ def get_maps_for_input(input_dict, scene, hyperparams):
 def main():
     # Choose one of the model directory names under the experiment/*/models folders.
     # Possibilities are 'vel_ee', 'int_ee', 'int_ee_me', or 'robot'
-    model_dir = os.path.join(args.log_dir, 'robot')
+    model_dir = os.path.join(args.log_dir, 'robot/finetuning/29_May_2024_15_21_03')
 
     # Load hyperparameters from json
     config_file = os.path.join(model_dir, args.conf)
@@ -159,7 +159,7 @@ def main():
     online_env = create_online_env(eval_env, hyperparams, scene_idx, init_timestep)
 
     model_registrar = ModelRegistrar(model_dir, args.eval_device)
-    model_registrar.load_models(iter_num=12)
+    model_registrar.load_models(iter_num=10)
 
     trajectron = OnlineTrajectron(model_registrar,
                                   hyperparams,
