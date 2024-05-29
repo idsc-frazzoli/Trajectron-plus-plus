@@ -188,8 +188,9 @@ def main():
                                                             padding=0.0)
             # robot_present_and_future = np.stack([robot_present_and_future, robot_present_and_future], axis=0)
             # robot_present_and_future += adjustment
+            modified_ego_plan = robot_present_and_future
             # modified_ego_plan = get_ego_plan_const_vel(ego_plan_original=robot_present_and_future)
-            modified_ego_plan = get_ego_plan_stop(ego_plan_original=robot_present_and_future)
+            # modified_ego_plan = get_ego_plan_stop(ego_plan_original=robot_present_and_future)
 
         start = time.time()
         dists, preds = trajectron.incremental_forward(input_dict,
