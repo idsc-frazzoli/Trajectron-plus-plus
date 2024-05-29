@@ -405,7 +405,7 @@ def process_scene(raw_data, data_name, map_path, map_name, env):
     return scene
 
 
-def process_data(data_path, map_path, map_name, output_path):
+def process_data(data_path, map_path, map_name, output_path, output_name):
     # read from saved data, split to training and testing data
     raw_data = load_data_from_file(data_path)
     data_name_list = [key for key in raw_data.keys()]
@@ -438,8 +438,11 @@ def process_data(data_path, map_path, map_name, output_path):
         env.scenes = scenes
 
         if len(scenes) > 0:
-            mini_string = '_tbsim_scene0103'
-            data_dict_path = os.path.join(output_path, 'nuScenes_' + data_class + mini_string + '_full.pkl')
+            if output_name is not None:
+                data_dict_path = os.path.join(output_path, output_name + '_' +  data_class +'.pkl')
+            else:
+                mini_string = '_tbsim_scene0103'
+                data_dict_path = os.path.join(output_path, 'nuScenes_' + data_class + mini_string + '.pkl')
             with open(data_dict_path, 'wb') as f:
                 dill.dump(env, f, protocol=dill.HIGHEST_PROTOCOL)
             print('Saved Environment!')
@@ -461,5 +464,6 @@ if __name__ == '__main__':
     parser.add_argument('--map_path', type=str, required=True)
     parser.add_argument('--output_path', type=str, required=True)
     parser.add_argument('--map_name', type=str, required=True)
+    parser.add_argument('--output_name', type=str, required=False)
     args = parser.parse_args()
-    process_data(args.data_path, args.map_path, args.map_name, args.output_path)
+    process_data(args.data_path, args.map_path, args.map_name, args.output_path, args.output_name)

@@ -96,10 +96,9 @@ def main():
     trained_model_dir = None
     finetune_model_dir = None
     if is_finetuning:
-        hyperparams['learning_rate']=0.001
-        trained_model_dir = os.path.join(args.log_dir, 'robot')
+        trained_model_dir = os.path.join(args.log_dir)
         finetune_model_dir = os.path.join(args.log_dir,
-                                          'robot/finetuning/' + time.strftime('%d_%b_%Y_%H_%M_%S', time.localtime()))
+                                          'finetuning/' + time.strftime('%d_%b_%Y_%H_%M_%S', time.localtime()))
         pathlib.Path(finetune_model_dir).mkdir(parents=True, exist_ok=True)
         with open(os.path.join(finetune_model_dir, 'config.json'), 'w') as conf_json:
             json.dump(hyperparams, conf_json)
@@ -451,7 +450,10 @@ def main():
                                             epoch)
 
         if args.save_every is not None and args.debug is False and epoch % args.save_every == 0:
-            model_registrar.save_models(epoch)
+            if is_finetuning:
+                model_registrar.save_models(epoch, save_dir=finetune_model_dir)
+            else:
+                model_registrar.save_models(epoch)
 
 
 if __name__ == '__main__':
